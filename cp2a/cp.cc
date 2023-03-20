@@ -20,7 +20,7 @@ This is the function you need to implement. Quick reference:
 - only parts with 0 <= j <= i < ny need to be filled
 */
 void correlate(int ny, int nx, const float *data, float *result) {
-    constexpr int chunk = 4;
+    constexpr int chunk = 12;
     int num_chunks = (nx + chunk - (nx % chunk)) / chunk;
     int nx_padded = chunk * num_chunks;
     std::vector<double> normalized(ny * nx);
