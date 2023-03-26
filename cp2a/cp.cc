@@ -44,6 +44,8 @@ void correlate(int ny, int nx, const float *data, float *result) {
         }
     }
 
+    print_vec(normalized, ny, nx);
+
     for (int y = 0; y < ny; ++y) {
         for (int x = 0; x < nx_padded; ++x) {
             if (x < nx) {
