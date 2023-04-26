@@ -1,8 +1,12 @@
 #include <iostream>
 #include <cmath>
 #include <vector>
+#include <x86intrin.h>
 
 typedef double double4_t __attribute__ ((vector_size (4 * sizeof(double))));
+
+static inline double4_t swap2(double4_t x) { return _mm256_permute_pd(x, 0b0100); }
+static inline double4_t swap1(double4_t x) { return _mm256_permute_pd(x, 0b1011); }
 
 constexpr double4_t init_double4 {0, 0, 0, 0};
 
@@ -23,15 +27,12 @@ This is the function you need to implement. Quick reference:
 - only parts with 0 <= j <= i < ny need to be filled
 */
 void correlate(int ny, int nx, const float *data, float *result) {
-    constexpr int row_chunk = 4;
-    int num_row_chunks = (nx + row_chunk - (nx % row_chunk)) / row_chunk;
-    int nx_padded = num_row_chunks * row_chunk;
-    constexpr int col_chunk = 6;
+    constexpr int col_chunk = 4;
     int num_col_chunks = (ny + col_chunk - (ny % col_chunk)) / col_chunk;
     int ny_padded = num_col_chunks * col_chunk;
     std::vector<double> norm(nx * ny);
-    std::vector<double> norm_padded(nx_padded * ny_padded);
-    std::vector<double4_t> norm_d4(num_row_chunks * ny_padded);
+    std::vector<double> norm_padded(nx * ny_padded);
+    std::vector<double4_t> norm_chunk(nx * num_col_chunks);
 
     #pragma omp parallel for
     for (int y = 0; y < ny; ++y) {
@@ -55,100 +56,50 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
     #pragma omp parallel for
     for (int y = 0; y < ny_padded; ++y) {
-        for (int x = 0; x < nx_padded; ++x) {
-            bool is_value = x < nx && y < ny;
-            norm_padded[x + y * nx_padded] = is_value ? norm[x + y * nx] : 0;
-        }
-    }
-
-    #pragma omp parallel for
-    for (int y = 0; y < ny_padded; ++y) {
-        for (int ka = 0; ka < num_row_chunks; ++ka) {
-            for (int kb = 0; kb < row_chunk; ++kb) {
-                int x = kb + ka * row_chunk;
-                norm_d4[num_row_chunks * y + ka][kb] = norm_padded[x + y * nx_padded];
+        for (int x = 0; x < nx; ++x) {
+            if (x < nx && y < ny) {
+                norm_padded[x + y * nx] = norm[x + y * nx];
             }
         }
     }
 
     #pragma omp parallel for
-    for (int ic = 0; ic < num_col_chunks; ++ic) {
-        for (int jc = 0; jc < num_col_chunks; ++jc) {
-            double4_t products[col_chunk][col_chunk];
-            for (int id = 0; id < col_chunk; ++id) {
-                for (int jd = 0; jd < col_chunk; ++jd) {
-                    products[id][jd] = init_double4;
-                }
+    for (int chunk_i = 0; chunk_i < num_col_chunks; ++chunk_i) {
+        for (int x = 0; x < nx; ++x) {
+            for (int i = 0; i < col_chunk; ++i) {
+                int y = chunk_i * col_chunk + i;
+                norm_chunk[x + chunk_i * nx][i] = norm_padded[x + y * nx];
             }
+        }
+    }
 
-            for (int ka = 0; ka < num_row_chunks; ++ka) {
-                double4_t y0 = norm_d4[num_row_chunks * (jc * col_chunk + 0) + ka];
-                double4_t y1 = norm_d4[num_row_chunks * (jc * col_chunk + 1) + ka];
-                double4_t y2 = norm_d4[num_row_chunks * (jc * col_chunk + 2) + ka];
-                double4_t y3 = norm_d4[num_row_chunks * (jc * col_chunk + 3) + ka];
-                double4_t y4 = norm_d4[num_row_chunks * (jc * col_chunk + 4) + ka];
-                double4_t y5 = norm_d4[num_row_chunks * (jc * col_chunk + 5) + ka];
-                double4_t x0 = norm_d4[num_row_chunks * (ic * col_chunk + 0) + ka];
-                double4_t x1 = norm_d4[num_row_chunks * (ic * col_chunk + 1) + ka];
-                double4_t x2 = norm_d4[num_row_chunks * (ic * col_chunk + 2) + ka];
-                double4_t x3 = norm_d4[num_row_chunks * (ic * col_chunk + 3) + ka];
-                double4_t x4 = norm_d4[num_row_chunks * (ic * col_chunk + 4) + ka];
-                double4_t x5 = norm_d4[num_row_chunks * (ic * col_chunk + 5) + ka];
-                products[0][0] += x0 * y0;
-                products[0][1] += x0 * y1;
-                products[0][2] += x0 * y2;
-                products[0][3] += x0 * y3;
-                products[0][4] += x0 * y4;
-                products[0][5] += x0 * y5;
-                products[1][0] += x1 * y0;
-                products[1][1] += x1 * y1;
-                products[1][2] += x1 * y2;
-                products[1][3] += x1 * y3;
-                products[1][4] += x1 * y4;
-                products[1][5] += x1 * y5;
-                products[2][0] += x2 * y0;
-                products[2][1] += x2 * y1;
-                products[2][2] += x2 * y2;
-                products[2][3] += x2 * y3;
-                products[2][4] += x2 * y4;
-                products[2][5] += x2 * y5;
-                products[3][0] += x3 * y0;
-                products[3][1] += x3 * y1;
-                products[3][2] += x3 * y2;
-                products[3][3] += x3 * y3;
-                products[3][4] += x3 * y4;
-                products[3][5] += x3 * y5;
-                products[4][0] += x4 * y0;
-                products[4][1] += x4 * y1;
-                products[4][2] += x4 * y2;
-                products[4][3] += x4 * y3;
-                products[4][4] += x4 * y4;
-                products[4][5] += x4 * y5;
-                products[5][0] += x5 * y0;
-                products[5][1] += x5 * y1;
-                products[5][2] += x5 * y2;
-                products[5][3] += x5 * y3;
-                products[5][4] += x5 * y4;
-                products[5][5] += x5 * y5;
+    #pragma omp parallel for
+    for (int chunk_i = 0; chunk_i < num_col_chunks; ++chunk_i) {
+        for (int chunk_j = chunk_i; chunk_j < num_col_chunks; ++chunk_j) { 
+            double4_t prod000 = init_double4;
+            double4_t prod001 = init_double4;
+            double4_t prod010 = init_double4;
+            double4_t prod011 = init_double4;
+            for (int x = 0; x < nx; ++x) {
+                double4_t a000 = norm_chunk[nx * chunk_i + x];
+                double4_t b000 = norm_chunk[nx * chunk_j + x];
+                double4_t a001 = swap1(a000);
+                double4_t a010 = swap2(a000);
+                double4_t b001 = swap1(b000);
+                prod000 += a000 * b000;
+                prod001 += a001 * b000;
+                prod010 += a010 * b000;
+                prod011 += a010 * b001;
             }
-
-            for (int id = 0; id < col_chunk; ++id) {
-                for (int jd = 0; jd < col_chunk; ++jd) {
-                    int i = ic * col_chunk + id;
-                    int j = jc * col_chunk + jd;
+            double4_t summed[col_chunk] = {prod000, prod001, prod010, swap1(prod011)};
+            for (int ii = 0; ii < col_chunk; ++ii) {
+                for (int jj = 0; jj < col_chunk; ++jj) {
+                    int i = ii + chunk_i * col_chunk;
+                    int j = jj + chunk_j * col_chunk;
                     if (i < ny && j < ny) {
-                        result[ny * i + j] = sum_double4(products[id][jd]);
+                        result[j + i * ny] = summed[ii^jj][ii];
                     }
                 }
-            }
-        }
-    }
-
-    #pragma omp parallel for
-    for (int i = 0; i < ny; ++i) {
-        for (int j = 0; j < ny; ++j) {
-            if (j < i) {
-                result[i + j * ny] = result[j + i * ny];
             }
         }
     }

@@ -7,6 +7,7 @@
             "args": [
                 "-fdiagnostics-color=always",
                 "-std=c++17",
+                "-march=native",
                 "-g",
                 "${fileDirname}/*.cc",
                 "-o",
