@@ -14,14 +14,6 @@ static inline double4_t swap1(double4_t x) {
 
 constexpr double4_t init_double4 {0, 0, 0, 0};
 
-double sum_double4(double4_t d) {
-    double sum = 0;
-    for (int i = 0; i < 4; ++i) {
-        sum += d[i];
-    }
-    return sum;
-}
-
 /*
 This is the function you need to implement. Quick reference:
 - input rows: 0 <= y < ny
@@ -79,12 +71,15 @@ void correlate(int ny, int nx, const float *data, float *result) {
 
     #pragma omp parallel for
     for (int chunk_i = 0; chunk_i < num_col_chunks; ++chunk_i) {
-        for (int chunk_j = chunk_i; chunk_j < num_col_chunks; ++chunk_j) { 
+        for (int chunk_j = chunk_i; chunk_j < num_col_chunks; ++chunk_j) {
             double4_t prod000 = init_double4;
             double4_t prod001 = init_double4;
             double4_t prod010 = init_double4;
             double4_t prod011 = init_double4;
             for (int x = 0; x < nx; ++x) {
+                constexpr int PF = 50;
+                __builtin_prefetch(&norm_chunk[nx * chunk_i + x + PF]);
+                __builtin_prefetch(&norm_chunk[nx * chunk_j + x + PF]);
                 double4_t a000 = norm_chunk[nx * chunk_i + x];
                 double4_t b000 = norm_chunk[nx * chunk_j + x];
                 double4_t a001 = swap1(a000);
