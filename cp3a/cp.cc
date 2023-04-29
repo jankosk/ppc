@@ -5,8 +5,12 @@
 
 typedef double double4_t __attribute__ ((vector_size (4 * sizeof(double))));
 
-static inline double4_t swap2(double4_t x) { return _mm256_permute_pd(x, 0b0100); }
-static inline double4_t swap1(double4_t x) { return _mm256_permute_pd(x, 0b1011); }
+static inline double4_t swap2(double4_t x) { 
+    return _mm256_permute4x64_pd(x, 0b01001110);
+}
+static inline double4_t swap1(double4_t x) {
+    return _mm256_permute_pd(x, 0b0101);
+}
 
 constexpr double4_t init_double4 {0, 0, 0, 0};
 
@@ -97,7 +101,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
                     int i = ii + chunk_i * col_chunk;
                     int j = jj + chunk_j * col_chunk;
                     if (i < ny && j < ny) {
-                        result[j + i * ny] = summed[ii^jj][ii];
+                        result[j + i * ny] = summed[jj^ii][jj];
                     }
                 }
             }
