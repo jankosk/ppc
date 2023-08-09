@@ -7,7 +7,7 @@ typedef double double4_t __attribute__ ((vector_size (4 * sizeof(double))));
 void print_double4(const double4_t& d) {
     for (int i = 0; i < 4; ++i) {
         std::cout << " " << d[i] << " ";
-    } 
+    }
 }
 
 void print_vec(const std::vector<double4_t>& vec, int na, int nb) {

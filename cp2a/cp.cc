@@ -29,7 +29,7 @@ void correlate(int ny, int nx, const float *data, float *result) {
     for (int y = 0; y < ny; ++y) {
         double mean = 0;
         for (int x = 0; x < nx; ++x) {
-            mean += data[x + y * nx];   
+            mean += data[x + y * nx];
         }
         mean = mean / nx;
         double stdiv = 0;

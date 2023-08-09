@@ -5,7 +5,7 @@
 
 typedef double double4_t __attribute__ ((vector_size (4 * sizeof(double))));
 
-static inline double4_t swap2(double4_t x) { 
+static inline double4_t swap2(double4_t x) {
     return _mm256_permute4x64_pd(x, 0b01001110);
 }
 static inline double4_t swap1(double4_t x) {
