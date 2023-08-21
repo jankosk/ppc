@@ -1,8 +1,6 @@
 #include <iostream>
 #include <algorithm>
 #include <vector>
-#include <string>
-#include <map>
 
 void print_vec(const std::vector<float>& vec, int ny, int nx) {
     for (int y = 0; y < ny; ++y) {
@@ -23,34 +21,32 @@ This is the function you need to implement. Quick reference:
   in out[x + y*nx].
 */
 void mf(int ny, int nx, int hy, int hx, const float *in, float *out) {
+    std::vector<float> window;
+
     for (int y = 0; y < ny; ++y) {
         for (int x = 0; x < nx; ++x) {
+            window.clear();
             int a_min = std::max(x - hx, 0);
             int a_max = std::min(x + hx + 1, nx);
             int b_min = std::max(y - hy, 0);
             int b_max = std::min(y + hy + 1, ny);
-            int a_diff = a_max - a_min;
-            int b_diff = b_max - b_min;
 
-            int size = a_diff * b_diff;
-            std::vector<float> vals(size);
-            int k = 0;
             for (int i = b_min; i < b_max; ++i) {
                 for (int j = a_min; j < a_max; ++j) {
-                    vals[k] = in[j + i * nx];
-                    ++k;
+                    window.push_back(in[j + i * nx]);
                 }
             }
-            std::sort(vals.begin(), vals.end());
+            int size = window.size();
+            int size_2 = size / 2;
+            std::nth_element(window.begin(), window.begin() + size_2, window.end());
 
             if (size % 2 == 0) {
-                int idx = (size - 1) / 2;
-                float median1 = vals[idx];
-                float median2 = vals[idx + 1];
+                float median1 = window[size_2];
+                std::nth_element(window.begin(), window.begin() + size_2 - 1, window.end());
+                float median2 = window[size_2 - 1];
                 out[x + y * nx] = (median1 + median2) / 2;
             } else {
-                int idx = (size - 1) / 2;
-                out[x + y * nx] = vals[idx];
+                out[x + y * nx] = window[size_2];
             }
         }
     }
