@@ -2,10 +2,12 @@
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++ build active file",
-            "command": "/usr/bin/g++",
+            "label": "PPC C/C++: build active file",
+            "command": "gcc-13",
             "args": [
+                "-Wall",
                 "-fdiagnostics-color=always",
+                "-fopenmp",
                 "-std=c++17",
                 "-march=native",
                 "-g",
